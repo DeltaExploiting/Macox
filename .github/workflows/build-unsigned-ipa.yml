@@ -22,7 +22,13 @@ jobs:
 
       - name: Generate Xcode project
         working-directory: KSignInspiredCertificates
-        run: xcodegen generate
+        run: |
+          set -e
+          xcodegen generate
+          PROJECT_FILE="KSignInspiredCertificates.xcodeproj/project.pbxproj"
+          if grep -q 'objectVersion = 77;' "$PROJECT_FILE"; then
+            sed -i '' 's/objectVersion = 77;/objectVersion = 56;/' "$PROJECT_FILE"
+          fi
 
       - name: Build unsigned app
         working-directory: KSignInspiredCertificates
