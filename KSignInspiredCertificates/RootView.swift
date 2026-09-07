@@ -22,7 +22,7 @@ struct RootView: View {
                 }
             }.safeAreaInset(edge: .bottom) { Color.clear.frame(height: 70) }
             HStack {
-                ForEach(AppTab.allCases, id: \\.self) { item in
+                ForEach(AppTab.allCases, id: \.self) { item in
                     Button { tab = item } label: {
                         VStack(spacing: 5) { Image(systemName: item.icon); Text(item.rawValue).font(.caption2) }
                             .frame(maxWidth: .infinity).foregroundStyle(tab == item ? .white : .gray)
@@ -35,7 +35,7 @@ struct RootView: View {
 
 struct FilesView: View {
     @State private var showingImporter = false
-    @State private var importedFiles: [URL] = []
+    @State private var importedFiles: [String] = []
     @State private var errorMessage: String?
 
     var body: some View {
@@ -47,10 +47,7 @@ struct FilesView: View {
                     ContentUnavailableView("No Files", systemImage: "folder", description: Text("Import an IPA to get started."))
                 } else {
                     List(importedFiles, id: \.self) { file in
-                        Button { openIPA(file) } label: {
-                            Label(file.lastPathComponent, systemImage: "app.fill")
-                                .foregroundStyle(.white)
-                        }
+                        Label(file, systemImage: "app.fill").foregroundStyle(.white)
                     }.scrollContentBackground(.hidden)
                 }
                 Spacer()
@@ -60,34 +57,20 @@ struct FilesView: View {
                 }.buttonStyle(.borderedProminent).padding()
             }
             .background(Color(red: 0.055, green: 0.055, blue: 0.07))
-            .fileImporter(isPresented: $showingImporter, allowedContentTypes: [UTType(filenameExtension: "ipa") ?? .data], allowsMultipleSelection: false) { result in
+            .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.data, .item], allowsMultipleSelection: true) { result in
                 switch result {
                 case .success(let urls):
-                    guard let url = urls.first else { return }
-                    guard url.pathExtension.lowercased() == "ipa" else {
-                        errorMessage = "Please select an .ipa file."
-                        return
+                    for url in urls where url.pathExtension.lowercased() == "ipa" {
+                        importedFiles.append(url.lastPathComponent)
                     }
-                    importedFiles.append(url)
-                    openIPA(url)
-                case .failure(let error):
-                    errorMessage = "Could not open IPA: \(error.localizedDescription)"
+                    if urls.allSatisfy({ $0.pathExtension.lowercased() != "ipa" }) { errorMessage = "Please select an .ipa file." }
+                case .failure(let error): errorMessage = error.localizedDescription
                 }
             }
             .alert("Import IPA", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
                 Button("OK") { errorMessage = nil }
             } message: { Text(errorMessage ?? "") }
         }
-    }
-
-    private func openIPA(_ url: URL) {
-        let accessGranted = url.startAccessingSecurityScopedResource()
-        defer { if accessGranted { url.stopAccessingSecurityScopedResource() } }
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            errorMessage = "The selected IPA could not be accessed."
-            return
-        }
-        UIApplication.shared.open(url)
     }
 }
 
