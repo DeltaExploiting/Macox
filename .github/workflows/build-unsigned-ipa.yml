@@ -17,31 +17,26 @@ jobs:
         with:
           xcode-version: '15.4'
 
-      - name: Locate Xcode project
-        id: locate
-        shell: bash
-        run: |
-          set -e
-          PROJECT=$(find . -maxdepth 3 -name '*.xcodeproj' -print -quit)
-          WORKSPACE=$(find . -maxdepth 3 -name '*.xcworkspace' -print -quit)
-          if [ -n "$WORKSPACE" ]; then
-            echo "workspace=$WORKSPACE" >> "$GITHUB_OUTPUT"
-          elif [ -n "$PROJECT" ]; then
-            echo "project=$PROJECT" >> "$GITHUB_OUTPUT"
-          else
-            echo 'No .xcodeproj or .xcworkspace found. Upload the Xcode project first.'
-            exit 1
-          fi
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: KSignInspiredCertificates
+        run: xcodegen generate
 
       - name: Build unsigned app
-        shell: bash
+        working-directory: KSignInspiredCertificates
         run: |
           set -e
-          if [ -n "${{ steps.locate.outputs.workspace }}" ]; then
-            xcodebuild -workspace "${{ steps.locate.outputs.workspace }}" -scheme KSignInspiredCertificates -sdk iphoneos -configuration Release -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
-          else
-            xcodebuild -project "${{ steps.locate.outputs.project }}" -scheme KSignInspiredCertificates -sdk iphoneos -configuration Release -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
-          fi
+          xcodebuild \
+            -project KSignInspiredCertificates.xcodeproj \
+            -scheme KSignInspiredCertificates \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath "$GITHUB_WORKSPACE/build" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
 
       - name: Package IPA
         shell: bash
